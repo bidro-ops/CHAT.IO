@@ -12,11 +12,11 @@ const io = new Server(server, {
 });
 
 
-const userSocketMap = {}; // {userId: socketId}
+const userSocketMap = {}; 
+const roomMembers = {};
 
-
-export function getReceiverSocketId(userId) {
-  return userSocketMap[userId];
+export function getRoomMembers(userId) {
+  return roomMembers[roomId] || [];
 }
 
 
@@ -35,15 +35,51 @@ io.on("connection", (socket) => {
   userSocketMap[userId] = socket.id;
   console.log(`🟢 User ${userId} is online (Socket ID: ${socket.id})`);
 
+    socket.on("joinRoom", ({ roomId }) => {
+    socket.join(roomId); // Join the socket.io room
+    if (!roomMembers[roomId]) roomMembers[roomId] = [];
+    if (!roomMembers[roomId].includes(userId)) {
+      roomMembers[roomId].push(userId);
+    }
+    console.log(`👥 User ${userId} joined room ${roomId}`);
 
-  // io.emit() is used to send events to all the connected clients
-  io.emit("getOnlineUsers", Object.keys(userSocketMap));
+    // Notify room members
+    io.to(roomId).emit("roomMembersUpdate", roomMembers[roomId]);
+  });
 
-  socket.on("disconnect", () => {
-    console.log("A user disconnected", socket.id);
+
+    socket.on("leaveRoom", ({ roomId }) => {
+    socket.leave(roomId);
+    if (roomMembers[roomId]) {
+      roomMembers[roomId] = roomMembers[roomId].filter((id) => id !== userId);
+      io.to(roomId).emit("roomMembersUpdate", roomMembers[roomId]);
+    }
+    console.log(`🚪 User ${userId} left room ${roomId}`);
+  });
+
+
+    socket.on("sendMessage", ({ roomId, senderId, message }) => {
+    console.log(`📩 Message in room ${roomId} from user ${senderId}:`, message);
+    io.to(roomId).emit("newMessage", { senderId, message });
+  });
+
+
+   socket.on("disconnect", () => {
+    console.log("A user disconnected:", socket.id);
     delete userSocketMap[userId];
+
+    // Remove user from any rooms
+    for (const roomId in roomMembers) {
+      roomMembers[roomId] = roomMembers[roomId].filter((id) => id !== userId);
+      io.to(roomId).emit("roomMembersUpdate", roomMembers[roomId]);
+    }
+
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
+
+
+  io.emit("getOnlineUsers", Object.keys(userSocketMap));
+  
 });
 
 export { io, app, server };

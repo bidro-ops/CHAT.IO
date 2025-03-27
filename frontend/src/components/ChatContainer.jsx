@@ -9,16 +9,25 @@ import { CircleUserRound } from "lucide-react";
 
 const ChatContainer = () => {
 
-    const {messages, getMessages, isMessagesLoading, selectedUser, subscribeToMessages, unsubscribeFromMessages} = useChatStore();
+    const {messages, getMessages, isMessagesLoading, selectedRoom, subscribeToMessages, unsubscribeFromMessages} = useChatStore();
     
     const { authUser } = useAuthStore();
     const messageEndRef = useRef(null);
     
+
+
+
     useEffect(() => {
-        getMessages(selectedUser._id);
-        subscribeToMessages();
-        return()=> unsubscribeFromMessages();
-    }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+       if (!selectedRoom){ 
+        return;
+      }
+      getMessages(selectedRoom._id);  
+      subscribeToMessages();     
+    
+
+    return () => unsubscribeFromMessages();  
+  }, [selectedRoom, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+
 
 
     useEffect(() => {
@@ -26,6 +35,7 @@ const ChatContainer = () => {
         messageEndRef.current.scrollIntoView({ behavior: "smooth" });
         }
     }, [messages]);
+
 
     if (isMessagesLoading) {
     return (
@@ -58,7 +68,7 @@ const ChatContainer = () => {
       <div className={`max-w-[70%] ${isCurrentUser ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'} rounded-2xl px-4 py-2 shadow-sm`}>
         <div className="flex items-center mb-1">
           <span className="text-xs font-medium">
-            {isCurrentUser ? 'You' : selectedUser.fullName}
+            {isCurrentUser ? 'You' : message.senderId}
           </span>
           <span className="mx-2 text-xs opacity-60">•</span>
           <time className="text-xs opacity-60">

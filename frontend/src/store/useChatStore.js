@@ -6,27 +6,28 @@ import { io } from "socket.io-client";
 
 export const useChatStore = create((set, get) => ({
   messages: [],
+  rooms:[],
   users: [],
-  selectedUser: null,
-  isUsersLoading: false,
+  selectedRoom: null,
+  isRoomsLoading: false,
   isMessagesLoading: false,
 
-  getUsers: async () => {
-    set({ isUsersLoading: true });
+  getRooms: async () => {
+    set({ isRoomsLoading: true });
     try {
-      const res = await axiosInstance.get("/messages/users");
-      set({ users: res.data });
+      const res = await axiosInstance.get("/messages/rooms");
+      set({ rooms: res.data });
     } catch (error) {
       toast.error(error.response.data.message);
     } finally {
-      set({ isUsersLoading: false });
+      set({ isRoomsLoading: false });
     }
   },
 
-  getMessages: async (userId) => {
+  getMessages: async (roomId) => {
     set({ isMessagesLoading: true });
     try {
-      const res = await axiosInstance.get(`/messages/${userId}`);
+      const res = await axiosInstance.get(`/messages/room/${roomId}`);
       set({ messages: res.data });
     } catch (error) {
       toast.error(error.response.data.message);
@@ -37,9 +38,9 @@ export const useChatStore = create((set, get) => ({
 
 
   sendMessage: async (messageData) => {
-    const { selectedUser, messages } = get();
+    const { selectedRoom, messages } = get();
     try {
-      const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
+      const res = await axiosInstance.post(`/messages/room/send/${selectedRoom._id}`, messageData);
       set({ messages: [...messages, res.data] });
     } catch (error) {
       toast.error(error.response.data.message);
@@ -47,21 +48,18 @@ export const useChatStore = create((set, get) => ({
   },
 
      subscribeToMessages: () => {
-    const { selectedUser } = get();
-    if (!selectedUser) return;
+    const { selectedRoom } = get();
+    if (!selectedRoom) return;
 
     const socket = useAuthStore.getState().socket;
-    const currentUserId = useAuthStore.getState().authUser._id;
+    socket.emit("joinRoom", { roomId: selectedRoom._id });
+
+    //const currentUserId = useAuthStore.getState().authUser._id;
 
     socket.on("newMessage", (newMessage) => {
-      //const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
-      //if (!isMessageSentFromSelectedUser) return;
 
-            const isRelevantToCurrentChat = 
-      (newMessage.senderId === currentUserId && newMessage.receiverId === selectedUser._id) || 
-      (newMessage.senderId === selectedUser._id && newMessage.receiverId === currentUserId);
-      
-    if (!isRelevantToCurrentChat) return;
+
+    if (newMessage.roomId !== selectedRoom._id) return;
       
       set({
         messages: [...get().messages, newMessage],
@@ -70,13 +68,22 @@ export const useChatStore = create((set, get) => ({
     });
   },
 
+
     unsubscribeFromMessages: () => {
+    const { selectedRoom } = get();
     const socket = useAuthStore.getState().socket;
+
+    if (selectedRoom) {
+      socket.emit("leaveRoom", { roomId: selectedRoom._id });
+    }
+
     socket.off("newMessage");
   },
 
+  setSelectedRoom:(selectedRoom) => {set({ selectedRoom })
+  console.log(selectedRoom)},
+  
 
 
-  setSelectedUser: (selectedUser) => set({ selectedUser }),
 
 }));

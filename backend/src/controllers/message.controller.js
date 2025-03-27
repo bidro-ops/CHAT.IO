@@ -1,28 +1,30 @@
 import Message from "../models/chat.model.js";
 import User from "../models/user.model.js";
-import { getReceiverSocketId, io } from "../lib/socket.js";
+import { getRoomMembers , io } from "../lib/socket.js";
+import Room from "../models/room.model.js";
 
-export const affichageutilisateurs = async(req, res) => {
+
+
+export const getRooms = async (req, res) => {
     try {
-        const loggedInUserId = req.user._id;
-        const filteredUsers = await User.find({_id : {$ne: loggedInUserId}}).select("-password");
-        res.status(200).json(filteredUsers);
+        const userId = req.user.id;
+        const rooms = await Room.find({ members: userId });
+        res.status(200).json(rooms);
     } catch (error) {
-        res.status(500).json({error: "internal server error3"}); 
+        res.status(500).json({ message: "Server Error", error });
     }
 };
 
+
+
 export const getMessage = async(req, res) => {
     try {
-        const {id:usertochatid} =  req.params
+        const { id: roomId } =  req.params
         const myid = req.user._id;
         console.log(myid);
         const message = await Message.find({
-            $or:[
-                {senderId:myid, receiverId:usertochatid},
-                {senderId:usertochatid, receiverId:myid} 
-            ]
-        });
+            roomId            
+        }).populate("roomId", "username");
 
         res.status(200).json(message);
     } catch (error) {
@@ -34,26 +36,25 @@ export const getMessage = async(req, res) => {
 export const envoimessage = async(req,res) => {
     try{
     const{text, image} = req.body;
-    const{id:receiverId} = req.params;
+    const{id:roomId} = req.params;
     const senderId = req.user._id;
 
 
 
     const newMessage = new Message({
         senderId,
-        receiverId,
+        roomId,
         text,
-        image,
     });
 
 
     await newMessage.save();
 
     //socket.io
-    const receiverSocketId = getReceiverSocketId(receiverId);
-    if (receiverSocketId) {
-        io.to(receiverSocketId).emit("newMessage", newMessage);
-    }
+    
+    
+        io.to(roomId).emit("newMessage", newMessage);
+    
 
     res.status(200).json(newMessage);
     }catch(error){

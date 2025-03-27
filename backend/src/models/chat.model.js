@@ -9,11 +9,13 @@ const messageSchema = new mongoose.Schema(
         required : true,
     },
 
-    receiverId: {
+    roomId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required : true,
+        ref: "Room",
+        required: true,
     },
+
+
     
     text:{
         type : String,

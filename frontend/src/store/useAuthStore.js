@@ -37,7 +37,7 @@ export const useAuthStore = create((set, get) =>({
       toast.success("Account created successfully");
       get().connectSocket();
     } catch (error) {
-      //toast.error(error.response.data.message);
+      
       const errorMessage = error.response?.data?.message || "Signup failed. Please try again.";
       toast.error(errorMessage);
       console.error("Signup error:", error);
@@ -57,7 +57,7 @@ export const useAuthStore = create((set, get) =>({
       get().connectSocket();
 
     } catch (error) {
-      //toast.error(error.response.data.message);
+      
     const errorMessage = error.response?.data?.message || "Login failed. Please try again.";
     toast.error(errorMessage);
     console.error("Login error:", error);
@@ -69,6 +69,7 @@ export const useAuthStore = create((set, get) =>({
   logout: async() => {
     try{
     await axiosInstance.post("/auth/logout");
+    get().disconnectSocket();
     set({authUser: null});
     toast.success("logged out succesfully");
     get().disconnectSocket();
@@ -79,13 +80,14 @@ export const useAuthStore = create((set, get) =>({
 
   connectSocket: () => {
     const { authUser } = get();
-    //if (!authUser || get().socket?.connected) return;
+    if (!authUser || get().socket?.connected) return;
 
     const socket = io(BASE_URL,{
       query: {
         userId: authUser._id,
       },
     });
+    
     socket.connect();
 
     set({ socket: socket });
